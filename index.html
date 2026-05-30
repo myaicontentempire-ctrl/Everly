@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Everly Video Generator</title>
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #0f0f13;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    /* ── Trigger Button ── */
+    .open-btn {
+      background: linear-gradient(135deg, #7c3aed, #db2777);
+      color: #fff;
+      border: none;
+      padding: 16px 36px;
+      border-radius: 50px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 24px rgba(124, 58, 237, 0.4);
+    }
+    .open-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(124, 58, 237, 0.55);
+    }
+
+    /* ── Overlay ── */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(6px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      animation: fadeIn 0.2s ease;
+    }
+    .overlay.active { display: flex; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    /* ── Modal Card ── */
+    .modal {
+      background: #1a1a24;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 560px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 36px;
+      position: relative;
+      animation: slideUp 0.25s ease;
+      scrollbar-width: thin;
+      scrollbar-color: #7c3aed #1a1a24;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(24px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    /* ── Close Button ── */
+    .close-btn {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      background: rgba(255,255,255,0.07);
+      border: none;
+      color: #aaa;
+      font-size: 1.2rem;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, color 0.2s;
+    }
+    .close-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+
+    /* ── Header ── */
+    .modal-header {
+      margin-bottom: 28px;
+      padding-right: 32px;
+    }
+    .modal-header h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    .modal-header p {
+      font-size: 0.875rem;
+      color: #888;
+      line-height: 1.5;
+    }
+
+    /* ── Form Elements ── */
+    .form-group {
+      margin-bottom: 22px;
+    }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #ccc;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    label span.required { color: #db2777; margin-left: 2px; }
+
+    input[type="text"],
+    input[type="url"],
+    textarea,
+    select {
+      width: 100%;
+      background: #111118;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      color: #fff;
+      font-size: 0.9rem;
+      padding: 12px 14px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      font-family: inherit;
+    }
+    input[type="text"]:focus,
+    input[type="url"]:focus,
+    textarea:focus,
+    select:focus {
+      border-color: #7c3aed;
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+    }
+    textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
+    select { appearance: none; cursor: pointer; }
+
+    input::placeholder,
+    textarea::placeholder { color: #555; }
+
+    /* ── Drop Zone ── */
+    .drop-zone {
+      border: 2px dashed rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+      background: #111118;
+    }
+    .drop-zone:hover,
+    .drop-zone.dragover {
+      border-color: #7c3aed;
+      background: rgba(124, 58, 237, 0.06);
+    }
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+    .drop-zone-icon {
+      font-size: 2.2rem;
+      margin-bottom: 10px;
+      display: block;
+    }
+    .drop-zone-text {
+      color: #aaa;
+      font-size: 0.875rem;
+      line-height: 1.6;
+    }
+    .drop-zone-text strong { color: #c084fc; }
+    .drop-zone-sub {
+      font-size: 0.75rem;
+      color: #555;
+      margin-top: 4px;
+    }
+
+    /* ── Preview ── */
+    .preview-wrap {
+      display: none;
+      margin-top: 14px;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .preview-wrap img {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      display: block;
+    }
+    .preview-remove {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    .preview-remove:hover { background: #db2777; }
+
+    /* ── OR Divider ── */
+    .or-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 14px 0;
+    }
+    .or-divider hr { flex: 1; border: none; border-top: 1px solid rgba(255,255,255,0.08); }
+    .or-divider span { color: #555; font-size: 0.75rem; font-weight: 600; letter-spacing: 1px; }
+
+    /* ── Toggle Switch ── */
+    .toggle-group {
+      display: flex;
+      background: #111118;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .toggle-group input[type="radio"] { display: none; }
+    .toggle-group label {
+      flex: 1;
+      text-align: center;
+      padding: 11px 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #666;
+      letter-spacing: 0.3px;
+      text-transform: none;
+      transition: color 0.2s, background 0.2s;
+      margin: 0;
+    }
+    .toggle-group input[type="radio"]:checked + label {
+      background: linear-gradient(135deg, #7c3aed, #db2777);
+      color: #fff;
+    }
+
+    /* ── Prompt Box (conditional) ── */
+    .prompt-section {
+      display: none;
+      animation: fadeIn 0.2s ease;
+    }
+    .prompt-section.visible { display: block; }
+
+    /* ── Advanced Settings Toggle ── */
+    .advanced-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 0;
+      margin-bottom: 16px;
+      transition: color 0.2s;
+    }
+    .advanced-toggle:hover { color: #c084fc; }
+    .advanced-toggle .arrow {
+      transition: transform 0.2s;
+      font-style: normal;
+      font-size: 0.7rem;
+    }
+    .advanced-toggle.open .arrow { transform: rotate(90deg); }
+
+    .advanced-panel {
+      display: none;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 22px;
+    }
+    .advanced-panel.visible { display: block; animation: fadeIn 0.2s ease; }
+
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+    /* ── AI Badge ── */
+    .ai-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(124, 58, 237, 0.15);
+      border: 1px solid rgba(124, 58, 237, 0.3);
+      color: #c084fc;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin-bottom: 10px;
+    }
+
+    /* ── Submit Button ── */
+    .submit-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #7c3aed, #db2777);
+      color: #fff;
+      border: none;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      transition: opacity 0.2s, transform 0.2s;
+      margin-top: 4px;
+    }
+    .submit-btn:hover:not(:disabled) {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+    .submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* ── Progress / Status ── */
+    .status-box {
+      display: none;
+      background: #111118;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 20px;
+      text-align: center;
+    }
+    .status-box.visible { display: block; animation: fadeIn 0.3s ease; }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(124,58,237,0.2);
+      border-top-color: #7c3aed;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .status-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .status-sub {
+      font-size: 0.8rem;
+      color: #666;
+    }
+
+    /* ── Steps Progress ── */
+    .steps {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin: 16px 0 0;
+      flex-wrap: wrap;
+    }
+    .step {
+      font-size: 0.7rem;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #555;
+      background: transparent;
+      transition: all 0.3s;
+    }
+    .step.active { border-color: #7c3aed; color: #c084fc; background: rgba(124,58,237,0.1); }
+    .step.done { border-color: #16a34a; color: #4ade80; background: rgba(22,163,74,0.1); }
+
+    /* ── Success Card ── */
+    .success-card {
+      display: none;
+      background: rgba(22,163,74,0.08);
+      border: 1px solid rgba(22,163,74,0.25);
+      border-radius: 12px;
+      padding: 22px;
+      margin-top: 20px;
+      text-align: center;
+    }
+    .success-card.visible { display: block; animation: fadeIn 0.3s ease; }
+    .success-icon { font-size: 2.5rem; margin-bottom: 10px; }
+    .success-card h3 { color: #4ade80; font-size: 1rem; margin-bottom: 6px; }
+    .success-card p { color: #888; font-size: 0.82rem; margin-bottom: 14px; }
+
+    .drive-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #7c3aed, #db2777);
+      color: #fff;
+      text-decoration: none;
+      padding: 10px 22px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      transition: opacity 0.2s;
+    }
+    .drive-link:hover { opacity: 0.85; }
+
+    .reset-btn {
+      display: block;
+      background: none;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #888;
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      margin: 10px auto 0;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .reset-btn:hover { border-color: #7c3aed; color: #c084fc; }
+
+    /* ── Error ── */
+    .error-box {
+      display: none;
+      background: rgba(220,38,38,0.08);
+      border: 1px solid rgba(220,38,38,0.25);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-top: 16px;
+      font-size: 0.83rem;
+      color: #fca5a5;
+      line-height: 1.5;
+    }
+    .error-box.visible { display: block; animation: fadeIn 0.2s ease; }
+
+    /* ── Scrollbar ── */
+    .modal::-webkit-scrollbar { width: 5px; }
+    .modal::-webkit-scrollbar-track { background: #1a1a24; }
+    .modal::-webkit-scrollbar-thumb { background: #7c3aed; border-radius: 10px; }
+
+    /* ── Mobile ── */
+    @media (max-width: 480px) {
+      .modal { padding: 24px 18px; }
+      .row-2, .row-3 { grid-template-columns: 1fr; gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Trigger Button (you can put this anywhere on your page) -->
+  <button class="open-btn" onclick="openModal()">🎬 Generate Video</button>
+
+  <!-- Overlay + Modal -->
+  <div class="overlay" id="overlay" onclick="handleOverlayClick(event)">
+    <div class="modal" id="modal">
+
+      <button class="close-btn" onclick="closeModal()" title="Close">✕</button>
+
+      <div class="modal-header">
+        <h2>🎬 Video Generator</h2>
+        <p>Upload an image, choose your prompt method, and generate a video saved to Google Drive.</p>
+      </div>
+
+      <form id="videoForm" onsubmit="handleSubmit(event)">
+
+        <!-- ── Step 1: Image ── -->
+        <div class="form-group">
+          <label>Image <span class="required">*</span></label>
+
+          <!-- Drop Zone -->
+          <div class="drop-zone" id="dropZone">
+            <input
+              type="file"
+              id="fileInput"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onchange="handleFileSelect(event)"
+            />
+            <span class="drop-zone-icon">🖼️</span>
+            <div class="drop-zone-text">
+              <strong>Click to upload</strong> or drag & drop
+            </div>
+            <div class="drop-zone-sub">JPG, PNG, WEBP up to 20MB</div>
+          </div>
+
+          <!-- Preview -->
+          <div class="preview-wrap" id="previewWrap">
+            <img id="previewImg" src="" alt="Preview" />
+            <button type="button" class="preview-remove" onclick="removeFile()" title="Remove">✕</button>
+          </div>
+
+          <!-- OR -->
+          <div class="or-divider">
+            <hr /><span>OR</span><hr />
+          </div>
+
+          <!-- URL Input -->
+          <input
+            type="url"
+            id="imageUrl"
+            placeholder="https://example.com/image.jpg"
+          />
+        </div>
+
+        <!-- ── Step 2: Prompt Method ── -->
+        <div class="form-group">
+          <label>Prompt Method <span class="required">*</span></label>
+          <div class="toggle-group">
+            <input type="radio" name="promptMode" id="modeAI" value="ai" checked onchange="togglePromptMode()" />
+            <label for="modeAI">🤖 AI — Analyse & Generate</label>
+
+            <input type="radio" name="promptMode" id="modeManual" value="manual" onchange="togglePromptMode()" />
+            <label for="modeManual">✍️ Manual Prompt</label>
+          </div>
+        </div>
+
+        <!-- AI Info -->
+        <div class="prompt-section" id="aiInfo" style="display:block;">
+          <div class="ai-badge">✨ AI Powered</div>
+          <p style="font-size:0.82rem;color:#666;line-height:1.55;">
+            GPT-4o will analyse your image — detecting the subject, setting, lighting, mood, and composition — then write a cinematic motion prompt automatically.
+          </p>
+        </div>
+
+        <!-- Manual Prompt -->
+        <div class="prompt-section" id="manualSection">
+          <div class="form-group" style="margin-top:14px;">
+            <label>Your Video Prompt <span class="required">*</span></label>
+            <textarea
+              id="manualPrompt"
+              placeholder="Describe the motion you want... e.g. The woman slowly turns her head toward the camera, a gentle breeze lifts her hair. Soft golden light shifts across her face. Camera slowly pushes in."
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- ── Advanced Settings ── -->
+        <button type="button" class="advanced-toggle" id="advancedToggle" onclick="toggleAdvanced()">
+          <i class="arrow">▶</i> Advanced Settings
+        </button>
+
+        <div class="advanced-panel" id="advancedPanel">
+          <div class="row-3">
+            <div class="form-group" style="margin-bottom:0;">
+              <label>Duration</label>
+              <select id="duration">
+                <option value="5">5 sec</option>
+                <option value="10" selected>10 sec</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label>Resolution</label>
+              <select id="resolution">
+                <option value="480p">480p</option>
+                <option value="720p" selected>720p</option>
+                <option value="1080p">1080p</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label>Aspect Ratio</label>
+              <select id="aspectRatio">
+                <option value="9:16" selected>9:16 (Reel)</option>
+                <option value="16:9">16:9 (Wide)</option>
+                <option value="1:1">1:1 (Square)</option>
+                <option value="4:5">4:5 (Portrait)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Submit ── -->
+        <button type="submit" class="submit-btn" id="submitBtn">
+          🚀 Generate Video
+        </button>
+
+      </form>
+
+      <!-- Status / Progress -->
+      <div class="status-box" id="statusBox">
+        <div class="spinner"></div>
+        <div class="status-title" id="statusTitle">Uploading image…</div>
+        <div class="status-sub" id="statusSub">This may take a few minutes</div>
+        <div class="steps">
+          <span class="step active" id="step1">📤 Upload</span>
+          <span class="step" id="step2">🤖 Prompt</span>
+          <span class="step" id="step3">🎬 Generate</span>
+          <span class="step" id="step4">💾 Save</span>
+        </div>
+      </div>
+
+      <!-- Error -->
+      <div class="error-box" id="errorBox"></div>
+
+      <!-- Success -->
+      <div class="success-card" id="successCard">
+        <div class="success-icon">🎉</div>
+        <h3>Video Ready!</h3>
+        <p id="successMeta"></p>
+        <a id="driveLink" class="drive-link" href="#" target="_blank">
+          📁 Open in Google Drive
+        </a>
+        <br/>
+        <button class="reset-btn" onclick="resetForm()">Generate Another</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // ── CONFIG ──────────────────────────────────────────────────────
+    const WEBHOOK_URL = 'https://YOUR-N8N-INSTANCE/webhook/everly-video-upload';
+    // ────────────────────────────────────────────────────────────────
+
+    let selectedFile = null;
+
+    /* ── Modal Open/Close ── */
+    function openModal() {
+      document.getElementById('overlay').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+      document.getElementById('overlay').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    function handleOverlayClick(e) {
+      if (e.target === document.getElementById('overlay')) closeModal();
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    /* ── File Handling ── */
+    function handleFileSelect(e) {
+      const file = e.target.files[0];
+      if (file) setFile(file);
+    }
+
+    function setFile(file) {
+      if (file.size > 20 * 1024 * 1024) {
+        showError('File is too large. Maximum size is 20MB.');
+        return;
+      }
+      selectedFile = file;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        document.getElementById('previewImg').src = ev.target.result;
+        document.getElementById('previewWrap').style.display = 'block';
+        document.getElementById('dropZone').style.display = 'none';
+        document.getElementById('imageUrl').value = '';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeFile() {
+      selectedFile = null;
+      document.getElementById('fileInput').value = '';
+      document.getElementById('previewImg').src = '';
+      document.getElementById('previewWrap').style.display = 'none';
+      document.getElementById('dropZone').style.display = 'block';
+    }
+
+    /* ── Drag & Drop ── */
+    const dropZone = document.getElementById('dropZone');
+
+    dropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) setFile(file);
+    });
+
+    /* ── Prompt Mode Toggle ── */
+    function togglePromptMode() {
+      const mode = document.querySelector('input[name="promptMode"]:checked').value;
+      document.getElementById('aiInfo').classList.toggle('visible', mode === 'ai');
+      document.getElementById('aiInfo').style.display = mode === 'ai' ? 'block' : 'none';
+      document.getElementById('manualSection').classList.toggle('visible', mode === 'manual');
+    }
+
+    /* ── Advanced Settings ── */
+    function toggleAdvanced() {
+      const btn = document.getElementById('advancedToggle');
+      const panel = document.getElementById('advancedPanel');
+      btn.classList.toggle('open');
+      panel.classList.toggle('visible');
+    }
+
+    /* ── Step Progress ── */
+    function setStep(stepNum) {
+      const steps = ['step1','step2','step3','step4'];
+      const titles = {
+        1: ['📤 Uploading image…',          'Sending to Cloudinary'],
+        2: ['🤖 Generating prompt…',         'AI is analysing your image'],
+        3: ['🎬 Generating video…',          'This takes 1–3 minutes'],
+        4: ['💾 Saving to Google Drive…',    'Almost done!']
+      };
+      steps.forEach((id, i) => {
+        const el = document.getElementById(id);
+        el.className = 'step';
+        if (i + 1 < stepNum) el.classList.add('done');
+        else if (i + 1 === stepNum) el.classList.add('active');
+      });
+      if (titles[stepNum]) {
+        document.getElementById('statusTitle').textContent = titles[stepNum][0];
+        document.getElementById('statusSub').textContent  = titles[stepNum][1];
+      }
+    }
+
+    /* ── Error ── */
+    function showError(msg) {
+      const box = document.getElementById('errorBox');
+      box.textContent = '⚠️ ' + msg;
+      box.classList.add('visible');
+    }
+    function clearError() {
+      const box = document.getElementById('errorBox');
+      box.textContent = '';
+      box.classList.remove('visible');
+    }
+
+    /* ── Form Reset ── */
+    function resetForm() {
+      removeFile();
+      document.getElementById('imageUrl').value = '';
+      document.getElementById('manualPrompt').value = '';
+      document.getElementById('videoForm').style.display = 'block';
+      document.getElementById('statusBox').classList.remove('visible');
+      document.getElementById('successCard').classList.remove('visible');
+      document.getElementById('submitBtn').disabled = false;
+      clearError();
+    }
+
+    /* ── Submit ── */
+    async function handleSubmit(e) {
+      e.preventDefault();
+      clearError();
+
+      const useAI   = document.querySelector('input[name="promptMode"]:checked').value === 'ai';
+      const prompt  = document.getElementById('manualPrompt').value.trim();
+      const urlVal  = document.getElementById('imageUrl').value.trim();
+
+      // Validate
+      if (!selectedFile && !urlVal) {
+        showError('Please upload an image or paste an image URL.'); return;
+      }
+      if (!useAI && !prompt) {
+        showError('Please enter a video prompt, or switch to AI mode.'); return;
+      }
+
+      // UI: hide form, show status
+      document.getElementById('videoForm').style.display = 'none';
+      document.getElementById('statusBox').classList.add('visible');
+      document.getElementById('successCard').classList.remove('visible');
+      document.getElementById('submitBtn').disabled = true;
+
+      try {
+        setStep(1);
+
+        let body;
+
+        if (selectedFile) {
+          // Binary upload — use FormData
+          const fd = new FormData();
+          fd.append('file', selectedFile);
+          fd.append('use_ai', useAI ? 'true' : 'false');
+          if (!useAI) fd.append('prompt', prompt);
+          fd.append('duration',     document.getElementById('duration').value);
+          fd.append('resolution',   document.getElementById('resolution').value);
+          fd.append('aspect_ratio', document.getElementById('aspectRatio').value);
+
+          setStep(useAI ? 2 : 3);
+
+          const res  = await fetch(WEBHOOK_URL, { method: 'POST', body: fd });
+          const data = await res.json();
+
+          handleResponse(data, useAI);
+
+        } else {
+          // URL upload — JSON body
+          setStep(useAI ? 2 : 3);
+
+          const res  = await fetch(WEBHOOK_URL, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+              image_url:    urlVal,
+              use_ai:       useAI,
+              prompt:       useAI ? '' : prompt,
+              duration:     document.getElementById('duration').value,
+              resolution:   document.getElementById('resolution').value,
+              aspect_ratio: document.getElementById('aspectRatio').value
+            })
+          });
+          const data = await res.json();
+
+          handleResponse(data, useAI);
+        }
+
+      } catch (err) {
+        document.getElementById('videoForm').style.display = 'block';
+        document.getElementById('statusBox').classList.remove('visible');
+        document.getElementById('submitBtn').disabled = false;
+        showError('Something went wrong: ' + err.message);
+      }
+    }
+
+    function handleResponse(data, useAI) {
+      setStep(4);
+
+      if (!data.success) {
+        document.getElementById('videoForm').style.display = 'block';
+        document.getElementById('statusBox').classList.remove('visible');
+        document.getElementById('submitBtn').disabled = false;
+        showError(data.message || data.error || 'Unknown error from server.');
+        return;
+      }
+
+      // Success!
+      document.getElementById('statusBox').classList.remove('visible');
+      const card = document.getElementById('successCard');
+      card.classList.add('visible');
+
+      const promptLabel = useAI ? 'AI-generated prompt' : 'Manual prompt';
+      const attempts    = data.videoGeneration?.pollAttempts || '—';
+      document.getElementById('successMeta').textContent =
+        `${promptLabel} · ${attempts} poll attempts · Saved as ${data.googleDrive?.fileName || 'video.mp4'}`;
+
+      const link = document.getElementById('driveLink');
+      link.href = data.googleDrive?.webViewLink || '#';
+    }
+  </script>
+</body>
+</html>
